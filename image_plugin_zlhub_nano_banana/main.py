@@ -731,7 +731,7 @@ def send_zlhub_image_request(
         "stream": False,
         "watermark": True,
         "sequential_image_generation": "disabled",
-        "image": image_value,
+        # "image": image_value,
     }
 
     _log(f"[zlhub API 请求] 请求端点: {url}")
