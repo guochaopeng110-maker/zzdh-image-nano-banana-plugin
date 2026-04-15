@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>图片中转插件 - GeekNow</title>
+  <link rel="stylesheet" href="../../../plugin-sdk.css">
+  <style>
+    .register-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .register-row a {
+      color: #0d7377;
+      text-decoration: none;
+    }
+    .register-row a:hover {
+      text-decoration: underline;
+    }
+    .api-key-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .api-key-wrapper input {
+      flex: 1;
+      padding-right: 36px;
+    }
+    .toggle-eye {
+      position: absolute;
+      right: 8px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      line-height: 1;
+    }
+    .toggle-eye:hover {
+      color: var(--text-primary);
+    }
+    .hint-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .action-buttons button {
+      flex: 1;
+      padding: 7px 0;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h3>图片中转插件 - GeekNow</h3>
+
+  <div class="register-row">
+    <span>还没有账号？</span>
+    <a href="https://www.geeknow.top/" target="_blank">点击注册 GeekNow 账号</a>
+  </div>
+
+  <hr>
+
+  <div class="form-row">
+    <label class="form-label">API Key</label>
+    <div class="form-control">
+      <div class="api-key-wrapper">
+        <input type="password" id="apiKeyInput" placeholder="GeekNow API Key">
+        <button class="toggle-eye" id="toggleEye" type="button">&#128065;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label">服务节点</label>
+    <div class="form-control">
+      <select id="baseUrlSelect">
+        <option value="https://www.geeknow.top">海外CN2服务 (https://www.geeknow.top)</option>
+        <option value="https://api.geeknow.top" selected>CDN服务 (https://api.geeknow.top)</option>
+        <option value="https://geek.closeai.icu">国内服务器 (https://geek.closeai.icu)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label">模型</label>
+    <div class="form-control">
+      <select id="modelSelect">
+        <option value="gemini-3-pro-image-preview">gemini-3-pro-image-preview</option>
+        <option value="gemini-2.5-flash-image-preview" selected>gemini-2.5-flash-image-preview</option>
+        <option value="gemini-3.1-flash-image-preview">gemini-3.1-flash-image-preview</option>
+        <option value="豆包即梦4.5">豆包即梦4.5</option>
+        <option value="豆包即梦4.0">豆包即梦4.0</option>
+        <option value="Grok 4.2 Image">Grok 4.2 Image</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label">图片比例</label>
+    <div class="form-control">
+      <select id="aspectRatioSelect">
+        <option value="1:1">1:1</option>
+        <option value="16:9" selected>16:9</option>
+        <option value="9:16">9:16</option>
+        <option value="4:3">4:3</option>
+        <option value="3:4">3:4</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-row" id="imageSizeRow">
+    <label class="form-label">图片尺寸</label>
+    <div class="form-control">
+      <select id="imageSizeSelect">
+        <option value="1K">1K</option>
+        <option value="2K" selected>2K</option>
+        <option value="4K">4K</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label">请求超时(秒)</label>
+    <div class="form-control">
+      <input type="number" id="requestTimeoutInput" min="100" max="999999" step="1" value="60000">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label">下载超时(秒)</label>
+    <div class="form-control">
+      <input type="number" id="downloadTimeoutInput" min="50" max="999999" step="1" value="60000">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label">重试次数</label>
+    <div class="form-control">
+      <input type="number" id="retryCountInput" min="0" max="10" step="1" value="0">
+    </div>
+  </div>
+
+  <p class="hint-text">
+    提示：通过 GeekNow API 调用 Gemini 系列模型（支持 nano-banana 图像生成模型），支持参考图片
+  </p>
+
+  <div class="action-buttons">
+    <button id="btnTaskLog" type="button">任务日志 / 手动拉图</button>
+    <button id="btnLiveLog" type="button">实时日志</button>
+  </div>
+
+  <script src="../../../plugin-sdk.js"></script>
+  <script>
+    var apiKeyInput = document.getElementById('apiKeyInput')
+    var toggleEye = document.getElementById('toggleEye')
+    var baseUrlSelect = document.getElementById('baseUrlSelect')
+    var modelSelect = document.getElementById('modelSelect')
+    var aspectRatioSelect = document.getElementById('aspectRatioSelect')
+    var imageSizeRow = document.getElementById('imageSizeRow')
+    var imageSizeSelect = document.getElementById('imageSizeSelect')
+    var requestTimeoutInput = document.getElementById('requestTimeoutInput')
+    var downloadTimeoutInput = document.getElementById('downloadTimeoutInput')
+    var retryCountInput = document.getElementById('retryCountInput')
+
+    toggleEye.addEventListener('click', function () {
+      if (apiKeyInput.type === 'password') {
+        apiKeyInput.type = 'text'
+        toggleEye.textContent = '\uD83D\uDE48'
+      } else {
+        apiKeyInput.type = 'password'
+        toggleEye.textContent = '\uD83D\uDC41'
+      }
+    })
+
+    function updateImageSizeVisibility() {
+      imageSizeRow.style.display = (modelSelect.value === 'gemini-3-pro-image-preview') ? '' : 'none'
+    }
+
+    modelSelect.addEventListener('change', function () {
+      PluginSDK.saveParam('model', modelSelect.value)
+      updateImageSizeVisibility()
+    })
+    apiKeyInput.addEventListener('change', function () {
+      PluginSDK.saveParam('api_key', apiKeyInput.value)
+    })
+    baseUrlSelect.addEventListener('change', function () {
+      PluginSDK.saveParam('base_url', baseUrlSelect.value)
+    })
+    aspectRatioSelect.addEventListener('change', function () {
+      PluginSDK.saveParam('aspect_ratio', aspectRatioSelect.value)
+    })
+    imageSizeSelect.addEventListener('change', function () {
+      PluginSDK.saveParam('image_size', imageSizeSelect.value)
+    })
+    requestTimeoutInput.addEventListener('change', function () {
+      PluginSDK.saveParam('request_timeout', parseInt(requestTimeoutInput.value) || 60000)
+    })
+    downloadTimeoutInput.addEventListener('change', function () {
+      PluginSDK.saveParam('download_timeout', parseInt(downloadTimeoutInput.value) || 60000)
+    })
+    retryCountInput.addEventListener('change', function () {
+      PluginSDK.saveParam('retry_count', parseInt(retryCountInput.value) || 0)
+    })
+
+    function setSelectValue(selectEl, value) {
+      if (value == null) return
+      var strVal = String(value)
+      for (var i = 0; i < selectEl.options.length; i++) {
+        if (selectEl.options[i].value === strVal) {
+          selectEl.selectedIndex = i
+          return
+        }
+      }
+    }
+
+    PluginSDK.onReady(function (params) {
+      if (params.api_key) apiKeyInput.value = params.api_key
+      if (params.base_url) setSelectValue(baseUrlSelect, params.base_url)
+      if (params.model) setSelectValue(modelSelect, params.model)
+      if (params.aspect_ratio) setSelectValue(aspectRatioSelect, params.aspect_ratio)
+      if (params.image_size) setSelectValue(imageSizeSelect, params.image_size)
+      if (params.request_timeout != null) requestTimeoutInput.value = params.request_timeout
+      if (params.download_timeout != null) downloadTimeoutInput.value = params.download_timeout
+      if (params.retry_count != null) retryCountInput.value = params.retry_count
+      updateImageSizeVisibility()
+    })
+    updateImageSizeVisibility()
+
+    document.getElementById('btnTaskLog').addEventListener('click', function () {
+      PluginSDK.sendAction('open_task_logs')
+    })
+    document.getElementById('btnLiveLog').addEventListener('click', function () {
+      PluginSDK.sendAction('open_live_logs')
+    })
+  </script>
+</body>
+</html>
