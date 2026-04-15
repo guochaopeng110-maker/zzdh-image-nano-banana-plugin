@@ -350,6 +350,26 @@ def _log_task_result(
     if not task_context:
         return None
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 获取状态显示文本
+    status_display, _ = _get_status_display(status)
+
+    # 构建日志消息，同步记录到文件
+    log_msg = f"[TaskResult#{log_id or 'NEW'}] 状态: {status_display}"
+    if error:
+        log_msg += f" | 错误: {error}"
+    if local_path:
+        log_msg += f" | 本地路径: {local_path}"
+
+    # 根据状态决定日志级别
+    log_level = "INFO"
+    if "fail" in str(status).lower() or "error" in str(status).lower():
+        log_level = "ERROR"
+    elif status == "running":
+        log_level = "WARNING"
+
+    _log(log_msg, level=log_level)
+
     if log_id:
         update_fields = {
             "status": status,
@@ -362,7 +382,6 @@ def _log_task_result(
         _update_task_log_entry(
             log_id, **{k: v for k, v in update_fields.items() if v is not None}
         )
-        print(f"[TaskLog] 更新任务日志 ID={log_id}, 状态={status}")
         return log_id
     entry = {
         "created_at": timestamp,
@@ -385,8 +404,6 @@ def _log_task_result(
         "metadata": _dict_to_json(task_context.get("metadata")),
     }
     log_id = _insert_task_log_entry(entry)
-    if log_id:
-        print(f"[TaskLog] 已记录任务日志 ID={log_id}, 状态={status}")
     return log_id
 
 
@@ -412,37 +429,57 @@ class _BufferingHandler(logging.Handler):
             )
 
 
+class _FlushingFileHandler(logging.FileHandler):
+    """自动刷新的 FileHandler，确保日志实时写入磁盘"""
+
+    def emit(self, record):
+        super().emit(record)
+        self.flush()
+
+
 def _setup_logging():
     """初始化全局 Logger"""
-    logger = logging.getLogger("image.GeekNow")  # 要去video不同
+    logger = logging.getLogger("image.zlhub")
     logger.setLevel(logging.INFO)
-    logger.handlers = []
 
-    # 增加时间格式，方便在日志文件中查看
-    fmt = logging.Formatter("%(asctime)s - [%(name)s] %(message)s")
+    # 强制清理旧的 handler，确保每次初始化（比如启动软件）都使用新的日志文件
+    for h in logger.handlers[:]:
+        if isinstance(h, logging.FileHandler):
+            h.close()
+        logger.removeHandler(h)
 
-    # 控制台输出
+    logger.propagate = False  # 防止传给宿主可能存在的 root logger
+
+    fmt = logging.Formatter("%(asctime)s - [%(name)s] %(levelname)s - %(message)s")
+
+    # 1. 控制台输出
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(fmt)
     logger.addHandler(console_handler)
 
-    # 内存缓存（供 UI 实时查看）
+    # 2. 内存缓存（供 UI 实时查看）
     buf_handler = _BufferingHandler()
     buf_handler.setFormatter(fmt)
     logger.addHandler(buf_handler)
 
-    # 文件输出
+    # 3. 文件输出
     try:
-        log_dir = Path(__file__).parent / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 以日期和时间区分文件名
+        # 使用 os.path 确保在各种加载环境下都能正确获取插件目录
+        plugin_dir_abs = os.path.dirname(os.path.abspath(__file__))
+        log_dir = os.path.join(plugin_dir_abs, "logs")
+
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = log_dir / f"plugin_{timestamp}.log"
-        
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        log_file = os.path.join(log_dir, f"plugin_{timestamp}.log")
+
+        # 使用自定义的 FlushingFileHandler
+        file_handler = _FlushingFileHandler(log_file, encoding="utf-8")
         file_handler.setFormatter(fmt)
         logger.addHandler(file_handler)
+
+        logger.info(f"Logging initialized. Current file: {log_file}")
     except Exception as e:
         print(f"Failed to create log file: {e}")
 
@@ -451,16 +488,18 @@ def _setup_logging():
 
 def _log(msg, level="INFO"):
     """
-    兼容旧代码的 _log 调用，转发到 standard logging
+    直接通过名称获取 Logger 并记录日志
     """
-    if str(level).upper() == "ERROR":
-        _logger.error(msg)
-    elif str(level).upper() == "WARNING":
-        _logger.warning(msg)
-    elif str(level).upper() == "DEBUG":
-        _logger.debug(msg)
+    logger = logging.getLogger("image.zlhub")
+    level = str(level).upper()
+    if level == "ERROR":
+        logger.error(msg)
+    elif level == "WARNING":
+        logger.warning(msg)
+    elif level == "DEBUG":
+        logger.debug(msg)
     else:
-        _logger.info(msg)
+        logger.info(msg)
 
 
 def get_buffered_logs(since_index=0):
@@ -696,7 +735,7 @@ def send_zlhub_image_request(
     }
 
     _log(f"[zlhub API 请求] 请求端点: {url}")
-    _log("[zlhub API 请求] 请求头: Authorization=Bearer ***")
+    _log(f"[zlhub API 请求] 请求头: {json.dumps(headers, ensure_ascii=False)}")
 
     payload_display = payload.copy()
     if isinstance(payload_display.get("image"), list):
@@ -707,7 +746,7 @@ def send_zlhub_image_request(
             for img in payload_display["image"]
         ]
     _log(
-        f"[Doubao API 请求] 请求体: {json.dumps(payload_display, indent=2, ensure_ascii=False)}"
+        f"[zlhub 请求] 请求体: {json.dumps(payload_display, indent=2, ensure_ascii=False)}"
     )
 
     # 发送请求
@@ -1111,12 +1150,14 @@ _default_params = {
 AVAILABLE_MODELS = [
     "nano banana 2",
     "doubao-seedream-4.5",
+    "doubao-seedream-5.0-lite",
 ]
 
 # 显示名称到 API 模型名称的映射
 MODEL_NAME_MAP = {
     "nano banana 2": "nano banana 2",
     "doubao-seedream-4.5": "doubao-seedream-4.5",
+    "doubao-seedream-5.0-lite": "doubao-seedream-5.0-lite",
 }
 
 # Doubao 模型的宽高比到尺寸映射
