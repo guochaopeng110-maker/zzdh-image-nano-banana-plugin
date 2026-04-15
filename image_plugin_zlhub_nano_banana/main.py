@@ -581,7 +581,7 @@ def handle_action(action, data=None):
         return {"ok": False, "error": f"未知动作: {action}"}
 
 
-def send_doubao_request(
+def send_zlhub_image_request(
     api_key,
     endpoint,
     model,
@@ -609,7 +609,7 @@ def send_doubao_request(
         (base64 编码的图片数据, 图片URL/URL列表)
     """
     _log(
-        f"send_doubao_request: model={model}, prompt={prompt}, aspect_ratio={aspect_ratio}"
+        f"send_zlhub_image_request: model={model}, prompt={prompt}, aspect_ratio={aspect_ratio}"
     )
 
     normalized_base = _normalize_base_url(endpoint)
@@ -648,9 +648,9 @@ def send_doubao_request(
             if all_upload_success and len(url_list) == len(valid_image_paths):
                 image_list = url_list
                 use_url_mode = True
-                _log("[Doubao] 所有参考图片上传成功，使用URL模式")
+                _log("[zlhub] 所有参考图片上传成功，使用URL模式")
             else:
-                _log("[Doubao] 图床上传失败，全部回退到base64模式")
+                _log("[zlhub] 图床上传失败，全部回退到base64模式")
                 for position, img_path in valid_image_paths:
                     try:
                         with open(img_path, "rb") as f:
@@ -663,7 +663,7 @@ def send_doubao_request(
             if image_list:
                 image_value = image_list
             _log(
-                f"[Doubao API 请求] 参考图片模式: {'URL' if use_url_mode else 'base64'}"
+                f"[zlhub API 请求] 参考图片模式: {'URL' if use_url_mode else 'base64'}"
             )
 
     payload = {
@@ -677,8 +677,8 @@ def send_doubao_request(
         "image": image_value,
     }
 
-    _log(f"[Doubao API 请求] 请求端点: {url}")
-    _log("[Doubao API 请求] 请求头: Authorization=Bearer ***")
+    _log(f"[zlhub API 请求] 请求端点: {url}")
+    _log("[zlhub API 请求] 请求头: Authorization=Bearer ***")
 
     payload_display = payload.copy()
     if isinstance(payload_display.get("image"), list):
@@ -701,14 +701,14 @@ def send_doubao_request(
         raise Exception(f"HTTP {response.status_code}: {response.text}")
 
     data = response.json()
-    _log(f"[Doubao API 响应] {json.dumps(data, indent=2, ensure_ascii=False)[:500]}...")
+    _log(f"[zlhub API 响应] {json.dumps(data, indent=2, ensure_ascii=False)[:500]}...")
 
     if "data" not in data or len(data["data"]) == 0:
         raise Exception("NO_RETRY:::API 未返回有效结果")
 
     image_urls = []
     for idx, image_result in enumerate(data["data"]):
-        _log(f"[Doubao] 第 {idx + 1} 个结果: {image_result}")
+        _log(f"[zlhub] 第 {idx + 1} 个结果: {image_result}")
         if isinstance(image_result, dict) and image_result.get("url"):
             image_urls.append(image_result["url"])
 
@@ -923,7 +923,7 @@ def generate(context):
     )
 
     try:
-        image_data_base64, image_source_url = send_doubao_request(
+        image_data_base64, image_source_url = send_zlhub_image_request(
             **common_kwargs, image_size=image_size
         )
     except Exception as e:
