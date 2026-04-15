@@ -418,15 +418,33 @@ def _setup_logging():
     logger.setLevel(logging.INFO)
     logger.handlers = []
 
-    fmt = logging.Formatter("[%(name)s] %(message)s")
+    # 增加时间格式，方便在日志文件中查看
+    fmt = logging.Formatter("%(asctime)s - [%(name)s] %(message)s")
 
+    # 控制台输出
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(fmt)
     logger.addHandler(console_handler)
 
+    # 内存缓存（供 UI 实时查看）
     buf_handler = _BufferingHandler()
     buf_handler.setFormatter(fmt)
     logger.addHandler(buf_handler)
+
+    # 文件输出
+    try:
+        log_dir = Path(__file__).parent / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 以日期和时间区分文件名
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = log_dir / f"plugin_{timestamp}.log"
+        
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setFormatter(fmt)
+        logger.addHandler(file_handler)
+    except Exception as e:
+        print(f"Failed to create log file: {e}")
 
     return logger
 
