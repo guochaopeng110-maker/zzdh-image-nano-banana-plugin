@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+image_task_logs.db
+manual_downloads/
