@@ -55,6 +55,27 @@ def _normalize_base_url(url: str) -> str:
     return url.rstrip("/")
 
 
+def _parse_json_response(response, request_url, scene_label):
+    """安全解析 JSON 响应，避免抛出笼统的 JSON 解析错误。"""
+    content_type = (response.headers.get("Content-Type") or "").strip()
+    response_text = response.text or ""
+    if not response_text.strip():
+        raise Exception(
+            f"NO_RETRY:::{scene_label} 返回空响应，"
+            f"HTTP {response.status_code}，Content-Type: {content_type or 'unknown'}，URL: {request_url}"
+        )
+    try:
+        return response.json()
+    except ValueError:
+        preview = response_text.replace("\r", "\\r").replace("\n", "\\n")
+        preview = preview[:300]
+        raise Exception(
+            f"NO_RETRY:::{scene_label} 返回非 JSON 响应，"
+            f"HTTP {response.status_code}，Content-Type: {content_type or 'unknown'}，"
+            f"Body 预览: {preview}"
+        )
+
+
 def image_to_base64(image_path):
     """
     将图片转换为 base64
@@ -670,7 +691,7 @@ def send_zlhub_image_request(
     )
 
     normalized_base = _normalize_base_url(endpoint)
-    url = f"{normalized_base}/zhonglian/api/v1/proxy/chat/completions"
+    url = f"{normalized_base}/v1/images/generations"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
     # 处理参考图片：有参考图时 image 必须为数组；文生图时 image 为空字符串
@@ -757,7 +778,7 @@ def send_zlhub_image_request(
     if response.status_code != 200:
         raise Exception(f"HTTP {response.status_code}: {response.text}")
 
-    data = response.json()
+    data = _parse_json_response(response, url, "zlhub API")
     _log(f"[zlhub API 响应] {json.dumps(data, indent=2, ensure_ascii=False)[:500]}...")
 
     if "data" not in data or len(data["data"]) == 0:
@@ -845,7 +866,7 @@ def upload_image_to_host(image_path, timeout=60):
             response = requests.post(url, files=files, timeout=timeout)
 
             if response.status_code == 200:
-                data = response.json()
+                data = _parse_json_response(response, url, "图床上传")
                 image_url = data.get("url")
                 if image_url:
                     print(f"[图床] 上传成功: {image_url}")
