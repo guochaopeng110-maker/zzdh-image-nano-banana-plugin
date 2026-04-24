@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Nano Banana 中转插件 - tduhub
+TDuHub图片中转插件V2
 通过 tduhub API 调用 nano banana 2、doubao-seedream-4.5 doubao-seedream-5.0-lite 模型生成图片
 """
 
@@ -585,7 +585,7 @@ def _seed_buffer_from_task_logs(limit=100):
 def get_info():
     """返回插件信息"""
     return {
-        "name": "图片中转插件 - tduhub(迁移版)",
+        "name": "TDuHub图片中转插件V2",
         "description": "通过 tduhub 中转 API 生成图片，支持文本提示词和参考图片\n注意：软件未与任何中转平台达成合作，不对任何中转平台的安全性负责，请谨慎辨别。",
         "version": "1.0.0",
         "author": "unknown",
