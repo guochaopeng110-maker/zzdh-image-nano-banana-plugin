@@ -1,0 +1,95 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Image Relay Plugin - webai</title>
+    <link rel="stylesheet" href="../../../plugin-sdk.css" />
+  </head>
+  <body>
+    <h3>Image Relay Plugin - webai</h3>
+    <hr />
+
+    <div class="form-row">
+      <label class="form-label">API Key</label>
+      <div class="form-control"><input type="password" id="apiKeyInput" placeholder="webai API Key" /></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Base URL</label>
+      <div class="form-control"><input type="text" id="baseUrlInput" value="http://localhost:8316" /></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Model</label>
+      <div class="form-control">
+        <select id="modelSelect">
+          <option value="gemini-3-pro-image-preview" selected>gemini-3-pro-image-preview</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Mode</label>
+      <div class="form-control">
+        <select id="streamSelect">
+          <option value="false" selected>Non-stream</option>
+          <option value="true">Stream</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Request Timeout (ms)</label>
+      <div class="form-control"><input type="number" id="requestTimeoutInput" min="100" step="1" value="60000" /></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Download Timeout (ms)</label>
+      <div class="form-control"><input type="number" id="downloadTimeoutInput" min="100" step="1" value="60000" /></div>
+    </div>
+
+    <div class="action-buttons" style="display:flex;gap:8px;margin-top:12px;">
+      <button id="btnTaskLog" type="button">Task Log</button>
+      <button id="btnLiveLog" type="button">Live Log</button>
+    </div>
+
+    <script src="../../../plugin-sdk.js"></script>
+    <script>
+      var apiKeyInput = document.getElementById("apiKeyInput");
+      var baseUrlInput = document.getElementById("baseUrlInput");
+      var modelSelect = document.getElementById("modelSelect");
+      var streamSelect = document.getElementById("streamSelect");
+      var requestTimeoutInput = document.getElementById("requestTimeoutInput");
+      var downloadTimeoutInput = document.getElementById("downloadTimeoutInput");
+
+      function save() {
+        PluginSDK.saveParam("api_key", apiKeyInput.value || "");
+        PluginSDK.saveParam("base_url", baseUrlInput.value || "http://localhost:8316");
+        PluginSDK.saveParam("model", modelSelect.value || "gemini-3-pro-image-preview");
+        PluginSDK.saveParam("stream", streamSelect.value === "true");
+        PluginSDK.saveParam("request_timeout", parseInt(requestTimeoutInput.value) || 60000);
+        PluginSDK.saveParam("download_timeout", parseInt(downloadTimeoutInput.value) || 60000);
+      }
+
+      [apiKeyInput, baseUrlInput, modelSelect, streamSelect, requestTimeoutInput, downloadTimeoutInput].forEach(function (el) {
+        el.addEventListener("change", save);
+      });
+
+      PluginSDK.onReady(function (params) {
+        if (params.api_key) apiKeyInput.value = params.api_key;
+        if (params.base_url) baseUrlInput.value = params.base_url;
+        if (params.model) modelSelect.value = String(params.model);
+        if (params.stream != null) streamSelect.value = params.stream ? "true" : "false";
+        if (params.request_timeout != null) requestTimeoutInput.value = params.request_timeout;
+        if (params.download_timeout != null) downloadTimeoutInput.value = params.download_timeout;
+      });
+
+      document.getElementById("btnTaskLog").addEventListener("click", function () {
+        PluginSDK.sendAction("open_task_logs");
+      });
+      document.getElementById("btnLiveLog").addEventListener("click", function () {
+        PluginSDK.sendAction("open_live_logs");
+      });
+    </script>
+  </body>
+</html>

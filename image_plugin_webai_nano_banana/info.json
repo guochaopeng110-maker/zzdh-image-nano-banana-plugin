@@ -1,0 +1,5 @@
+﻿{
+  "name": "Image Relay Plugin - webai",
+  "description": "Generate images via WebAI OpenAI-compatible chat/completions API.",
+  "version": "1.0.0"
+}
