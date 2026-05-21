@@ -1,6 +1,7 @@
 ---
 phase: 02-zlhub
 plan: 01
+status: complete
 subsystem: api
 tags: [zlhub, doubao, api-contract, requests, parsing]
 

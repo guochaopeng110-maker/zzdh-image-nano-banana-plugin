@@ -1,6 +1,7 @@
 ---
 phase: 01-plugin-skeleton-and-coexistence
 plan: 01
+status: complete
 subsystem: infra
 tags: [python-plugin, zlhub, coexistence, plugin-metadata]
 

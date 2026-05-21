@@ -1,6 +1,7 @@
 ---
 phase: 02-zlhub
 plan: 02
+status: complete
 subsystem: api
 tags: [zlhub, output-paths, download, local-files, verification]
 
