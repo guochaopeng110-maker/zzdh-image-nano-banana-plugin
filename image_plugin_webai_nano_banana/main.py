@@ -359,7 +359,8 @@ def get_info():
 
 def handle_action(action, data=None):
     data = data or {}
-    _log(f"[action] received action={action}")
+    if action != "get_logs":
+        _log(f"[action] received action={action}")
     if action == "open_live_logs":
         return {"ok": True, "open_page": "live_log.html"}
     if action == "open_task_logs":
@@ -381,7 +382,6 @@ def handle_action(action, data=None):
         since_index = int(data.get("since_index", 0))
         with _log_buffer_lock:
             logs = [item for item in _log_buffer if item["index"] > since_index]
-        _log(f"[action] get_logs since_index={since_index} returned={len(logs)}")
         return {"ok": True, "logs": logs}
     return {"ok": False, "error": f"unknown action: {action}"}
 
