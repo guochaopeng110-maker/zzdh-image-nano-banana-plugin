@@ -9,8 +9,6 @@
 
 - [x] **Phase 01: 插件骨架与并存建立** - 建立独立插件、可被宿主识别并与 GeekNow 插件并存。
 - [x] **Phase 02: zlhub 出图主链路闭环** - 打通接口调用、响应解析、多图下载落盘与宿主返回。
-- [ ] **Phase 03: 日志可观测与手动补偿闭环** - 保留任务日志能力并支持 URL 未落盘场景的手动补偿。
-- [ ] **Phase 04: 配置与 UI 一致性收敛** - 对齐 GeekNow 的关键配置布局交互并确保配置持久化生效。
 
 ## Phase Details
 
@@ -33,25 +31,12 @@ Plans:
 - [x] 02-01-PLAN.md - 固化 zlhub API 请求/解析契约并建立自动化校验。
 - [x] 02-02-PLAN.md - 完成多图下载落盘与宿主本地路径返回闭环。
 
-### Phase 03: 日志可观测与手动补偿闭环
-**Goal**: 用户可追踪任务状态、查看日志，并对未落盘任务执行手动下载补偿。  
-**Depends on**: Phase 02  
-**Requirements**: LOG-01, LOG-02, LOG-03, DL-01, DL-02, DL-03  
-**Plans**: TBD
-**UI hint**: yes
+### Phase 03: webai平台图片生成对接(参考image_plugin_zlhub_nano_banana)
 
-### Phase 04: 配置与 UI 一致性收敛
-**Goal**: 用户在 zlhub 插件中获得与 GeekNow 近似的配置与交互体验，且配置改动可持续生效。  
-**Depends on**: Phase 03  
-**Requirements**: CFG-01, CFG-02, CFG-03  
-**Plans**: TBD
-**UI hint**: yes
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase TBD
+**Plans:** 0 plans
 
-## Progress
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 01. 插件骨架与并存建立 | 1/1 | Executed | 2026-04-15 |
-| 02. zlhub 出图主链路闭环 | 2/2 | Executed | 2026-04-15 |
-| 03. 日志可观测与手动补偿闭环 | 0/TBD | Not started | - |
-| 04. 配置与 UI 一致性收敛 | 0/TBD | Not started | - |
+Plans:
+- [ ] TBD (run /gsd-plan-phase 03 to break down)
