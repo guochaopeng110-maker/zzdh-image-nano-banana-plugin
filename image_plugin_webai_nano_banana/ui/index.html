@@ -22,9 +22,7 @@
     <div class="form-row">
       <label class="form-label">Model</label>
       <div class="form-control">
-        <select id="modelSelect">
-          <option value="gemini-3-pro-image-preview" selected>gemini-3-pro-image-preview</option>
-        </select>
+        <select id="modelSelect"></select>
       </div>
     </div>
 
@@ -61,11 +59,28 @@
       var streamSelect = document.getElementById("streamSelect");
       var requestTimeoutInput = document.getElementById("requestTimeoutInput");
       var downloadTimeoutInput = document.getElementById("downloadTimeoutInput");
+      var supportedModels = [
+        "gemini-3.1-flash-image-preview",
+        "gemini-3-pro-image-preview-2k",
+        "flux-2-pro",
+        "flux-2-max",
+        "seedream-5.0-lite",
+        "seedream-4.5",
+        "qwen-image-2.0-pro",
+        "grok-imagine-image-pro",
+        "gpt-image-1.5-high-fidelity",
+        "chatgpt-image-latest-high-fidelity",
+      ];
+      var defaultModel = supportedModels[0];
+
+      modelSelect.innerHTML = supportedModels.map(function (model) {
+        return "<option value=\"" + model + "\">" + model + "</option>";
+      }).join("");
 
       function save() {
         PluginSDK.saveParam("api_key", apiKeyInput.value || "");
         PluginSDK.saveParam("base_url", baseUrlInput.value || "http://localhost:8316");
-        PluginSDK.saveParam("model", modelSelect.value || "gemini-3-pro-image-preview");
+        PluginSDK.saveParam("model", modelSelect.value || defaultModel);
         PluginSDK.saveParam("stream", streamSelect.value === "true");
         PluginSDK.saveParam("request_timeout", parseInt(requestTimeoutInput.value) || 60000);
         PluginSDK.saveParam("download_timeout", parseInt(downloadTimeoutInput.value) || 60000);
@@ -78,7 +93,7 @@
       PluginSDK.onReady(function (params) {
         if (params.api_key) apiKeyInput.value = params.api_key;
         if (params.base_url) baseUrlInput.value = params.base_url;
-        if (params.model) modelSelect.value = String(params.model);
+        if (params.model && supportedModels.indexOf(String(params.model)) >= 0) modelSelect.value = String(params.model); else modelSelect.value = defaultModel;
         if (params.stream != null) streamSelect.value = params.stream ? "true" : "false";
         if (params.request_timeout != null) requestTimeoutInput.value = params.request_timeout;
         if (params.download_timeout != null) downloadTimeoutInput.value = params.download_timeout;

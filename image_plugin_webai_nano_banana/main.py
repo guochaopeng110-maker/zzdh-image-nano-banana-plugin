@@ -25,6 +25,18 @@ except Exception:
 _PLUGIN_FILE = __file__
 _PLUGIN_ID = "image_plugin_webai_nano_banana"
 _PLUGIN_VERSION = "1.0.0"
+_SUPPORTED_MODELS = [
+    "gemini-3.1-flash-image-preview",
+    "gemini-3-pro-image-preview-2k",
+    "flux-2-pro",
+    "flux-2-max",
+    "seedream-5.0-lite",
+    "seedream-4.5",
+    "qwen-image-2.0-pro",
+    "grok-imagine-image-pro",
+    "gpt-image-1.5-high-fidelity",
+    "chatgpt-image-latest-high-fidelity",
+]
 
 plugin_dir = Path(__file__).parent
 _TASK_LOG_DB_PATH = plugin_dir / "image_task_logs.db"
@@ -33,7 +45,7 @@ _DEFAULT_BASE_URL = "http://localhost:8316"
 _default_params = {
     "api_key": "",
     "base_url": _DEFAULT_BASE_URL,
-    "model": "gemini-3-pro-image-preview",
+    "model": _SUPPORTED_MODELS[0],
     "request_timeout": 60000,
     "download_timeout": 60000,
     "stream": False,
@@ -180,7 +192,7 @@ def generate(context):
 
     api_key = str(plugin_params.get("api_key", "")).strip()
     base_url = _normalize_base_url(plugin_params.get("base_url") or _DEFAULT_BASE_URL)
-    model = str(plugin_params.get("model", "gemini-3-pro-image-preview"))
+    model = str(plugin_params.get("model", _SUPPORTED_MODELS[0]))
     request_timeout = int(plugin_params.get("request_timeout", 300))
     stream_mode = str(plugin_params.get("stream", "false")).lower() in ("1", "true", "yes", "on")
 

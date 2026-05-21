@@ -12,6 +12,18 @@ WebAI API 提供兼容 OpenAI 格式的 RESTful API。
 `Authorization: Bearer sk-your-secret-key
 Content-Type: application/json`
 
+### ***可用的mdels**
+gemini-3.1-flash-image-preview
+gemini-3-pro-image-preview-2k
+flux-2-pro
+flux-2-max
+seedream-5.0-lite
+seedream-4.5
+qwen-image-2.0-pro
+grok-imagine-image-pro
+gpt-image-1.5-high-fidelity
+chatgpt-image-latest-high-fidelity
+
 # **2. API 端点列表**
 
 ### **OpenAI 兼容接口**
