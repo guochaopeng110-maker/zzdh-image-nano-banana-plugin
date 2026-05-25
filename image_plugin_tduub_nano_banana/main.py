@@ -1151,6 +1151,7 @@ AVAILABLE_MODELS = [
     "nano banana 2",
     "doubao-seedream-4.5",
     "doubao-seedream-5.0-lite",
+    "gpt-image-2",
 ]
 
 # 显示名称到 API 模型名称的映射
@@ -1158,6 +1159,7 @@ MODEL_NAME_MAP = {
     "nano banana 2": "nano banana 2",
     "doubao-seedream-4.5": "doubao-seedream-4.5",
     "doubao-seedream-5.0-lite": "doubao-seedream-5.0-lite",
+    "gpt-image-2":"gpt-image-2",
 }
 
 # Doubao 模型的宽高比到尺寸映射
