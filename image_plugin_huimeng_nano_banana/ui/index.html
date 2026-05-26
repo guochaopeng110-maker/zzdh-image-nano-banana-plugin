@@ -1,0 +1,112 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Image Relay Plugin - huimeng</title>
+    <link rel="stylesheet" href="../../../plugin-sdk.css" />
+  </head>
+  <body>
+    <h3>Image Relay Plugin - huimeng</h3>
+    <hr />
+
+    <div class="form-row">
+      <label class="form-label">API Key</label>
+      <div class="form-control"><input type="password" id="apiKeyInput" placeholder="huimeng API Key" /></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Base URL</label>
+      <div class="form-control"><input type="text" id="baseUrlInput" value="https://api.huimengi.com" /></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Model</label>
+      <div class="form-control">
+        <select id="modelSelect"></select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Request Timeout (ms)</label>
+      <div class="form-control"><input type="number" id="requestTimeoutInput" min="100" step="1" value="60000" /></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Download Timeout (ms)</label>
+      <div class="form-control"><input type="number" id="downloadTimeoutInput" min="100" step="1" value="60000" /></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Poll Interval (ms)</label>
+      <div class="form-control"><input type="number" id="pollIntervalInput" min="10000" step="1000" value="10000" /></div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Poll Timeout (ms)</label>
+      <div class="form-control"><input type="number" id="pollTimeoutInput" min="1000" step="1000" value="120000" /></div>
+    </div>
+
+    <div class="action-buttons" style="display:flex;gap:8px;margin-top:12px;">
+      <button id="btnTaskLog" type="button">Task Log</button>
+      <button id="btnLiveLog" type="button">Live Log</button>
+    </div>
+
+    <script src="../../../plugin-sdk.js"></script>
+    <script>
+      var apiKeyInput = document.getElementById("apiKeyInput");
+      var baseUrlInput = document.getElementById("baseUrlInput");
+      var modelSelect = document.getElementById("modelSelect");
+      var requestTimeoutInput = document.getElementById("requestTimeoutInput");
+      var downloadTimeoutInput = document.getElementById("downloadTimeoutInput");
+      var pollIntervalInput = document.getElementById("pollIntervalInput");
+      var pollTimeoutInput = document.getElementById("pollTimeoutInput");
+      var supportedModels = [
+        "image-2-official",
+        "image-2",
+        "nb-2-official",
+        "nb-2",
+        "nb-pro",
+        "nb-pro-official",
+        "z-image-turbo",
+        "seedream-5.0-lite",
+        "seedream-4.5",
+      ];
+      var defaultModel = supportedModels[0];
+
+      modelSelect.innerHTML = supportedModels.map(function (model) {
+        return "<option value=\"" + model + "\">" + model + "</option>";
+      }).join("");
+
+      function save() {
+        PluginSDK.saveParam("api_key", apiKeyInput.value || "");
+        PluginSDK.saveParam("base_url", baseUrlInput.value || "https://api.huimengi.com");
+        PluginSDK.saveParam("model", modelSelect.value || defaultModel);
+        PluginSDK.saveParam("request_timeout", parseInt(requestTimeoutInput.value) || 60000);
+        PluginSDK.saveParam("download_timeout", parseInt(downloadTimeoutInput.value) || 60000);
+        PluginSDK.saveParam("poll_interval_ms", parseInt(pollIntervalInput.value) || 10000);
+        PluginSDK.saveParam("poll_timeout_ms", parseInt(pollTimeoutInput.value) || 120000);
+      }
+
+      [apiKeyInput, baseUrlInput, modelSelect, requestTimeoutInput, downloadTimeoutInput, pollIntervalInput, pollTimeoutInput].forEach(function (el) {
+        el.addEventListener("change", save);
+      });
+
+      PluginSDK.onReady(function (params) {
+        if (params.api_key) apiKeyInput.value = params.api_key;
+        if (params.base_url) baseUrlInput.value = params.base_url;
+        if (params.model && supportedModels.indexOf(String(params.model)) >= 0) modelSelect.value = String(params.model); else modelSelect.value = defaultModel;
+        if (params.request_timeout != null) requestTimeoutInput.value = params.request_timeout;
+        if (params.download_timeout != null) downloadTimeoutInput.value = params.download_timeout;
+        if (params.poll_interval_ms != null) pollIntervalInput.value = params.poll_interval_ms;
+        if (params.poll_timeout_ms != null) pollTimeoutInput.value = params.poll_timeout_ms;
+      });
+
+      document.getElementById("btnTaskLog").addEventListener("click", function () {
+        PluginSDK.sendAction("open_task_logs");
+      });
+      document.getElementById("btnLiveLog").addEventListener("click", function () {
+        PluginSDK.sendAction("open_live_logs");
+      });
+    </script>
+  </body>
+</html>

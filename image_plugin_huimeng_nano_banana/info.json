@@ -1,0 +1,5 @@
+﻿{
+  "name": "Image Relay Plugin - huimeng",
+  "description": "Generate images via HuiMeng async task API.",
+  "version": "1.0.0"
+}
