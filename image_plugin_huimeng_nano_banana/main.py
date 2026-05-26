@@ -38,10 +38,13 @@ _SUPPORTED_MODELS = [
 
 plugin_dir = Path(__file__).parent
 _TASK_LOG_DB_PATH = plugin_dir / "image_task_logs.db"
+_FILE_LOG_DIR = plugin_dir / "logs"
 _DEFAULT_BASE_URL = "https://api.huimengi.com"
 _log_buffer = []
 _log_buffer_lock = threading.Lock()
 _MAX_BUFFER_LOGS = 2000
+_file_log_lock = threading.Lock()
+_file_log_path = None
 
 _default_params = {
     "api_key": "",
@@ -101,6 +104,32 @@ def _mask_secret(value, keep=4):
     if len(s) <= keep:
         return "*" * len(s)
     return "*" * (len(s) - keep) + s[-keep:]
+
+
+def _ensure_file_log_path():
+    global _file_log_path
+    with _file_log_lock:
+        if _file_log_path is None:
+            _FILE_LOG_DIR.mkdir(parents=True, exist_ok=True)
+            filename = datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".log"
+            _file_log_path = _FILE_LOG_DIR / filename
+    return _file_log_path
+
+
+def _append_file_log(event, payload):
+    try:
+        path = _ensure_file_log_path()
+        record = {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            "event": event,
+            "payload": payload,
+        }
+        line = json.dumps(record, ensure_ascii=False)
+        with _file_log_lock:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except Exception as e:
+        _log(f"[file-log] write failed: {e}", "WARNING")
 
 
 _STATUS_DISPLAY_MAP = {
@@ -268,9 +297,10 @@ _MODEL_PARAM_SPECS = {
         },
     },
     "image-2": {
-        "defaults": {"ratio": "1:1", "resolution": "1k"},
+        "defaults": {"ratio": "1:1", "quality": "medium", "resolution": "1k"},
         "enum": {
             "ratio": ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9", "1:4", "4:1", "1:8", "8:1"],
+            "quality": ["low", "medium", "high"],
             "resolution": ["1k", "2k", "4k"],
         },
     },
@@ -358,8 +388,26 @@ def submit_huimeng_task(api_key, endpoint, model, params, request_timeout_s):
     _log(
         f"[request] submit endpoint={url} model={model} timeout_s={request_timeout_s} payload={json.dumps(payload_for_log, ensure_ascii=False)}"
     )
+    _append_file_log(
+        "submit.request",
+        {
+            "url": url,
+            "method": "POST",
+            "headers": {"Content-Type": "application/json", "Authorization": f"Bearer {_mask_secret(api_key)}"},
+            "json": payload_for_log,
+            "timeout_s": request_timeout_s,
+        },
+    )
     resp = requests.post(url, json=payload, headers=headers, timeout=request_timeout_s)
     _log(f"[response] submit status_code={resp.status_code} body={resp.text[:1000]}")
+    _append_file_log(
+        "submit.response",
+        {
+            "url": url,
+            "status_code": resp.status_code,
+            "body": resp.text,
+        },
+    )
     if resp.status_code != 200:
         raise Exception(f"HTTP {resp.status_code}: {resp.text}")
     data = resp.json()
@@ -377,8 +425,29 @@ def poll_huimeng_result(api_key, endpoint, task_id, request_timeout_s, poll_inte
     rounds = 0
     while True:
         rounds += 1
+        _append_file_log(
+            "poll.request",
+            {
+                "url": url,
+                "method": "GET",
+                "headers": {"Authorization": f"Bearer {_mask_secret(api_key)}"},
+                "task_id": task_id,
+                "round": rounds,
+                "timeout_s": request_timeout_s,
+            },
+        )
         resp = requests.get(url, headers=headers, timeout=request_timeout_s)
         _log(f"[response] poll status_code={resp.status_code}")
+        _append_file_log(
+            "poll.response",
+            {
+                "url": url,
+                "task_id": task_id,
+                "round": rounds,
+                "status_code": resp.status_code,
+                "body": resp.text,
+            },
+        )
         if resp.status_code != 200:
             raise Exception(f"HTTP {resp.status_code}: {resp.text}")
         data = resp.json()

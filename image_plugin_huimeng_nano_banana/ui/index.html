@@ -110,7 +110,7 @@
       var defaultModel = supportedModels[0];
       var modelFieldMap = {
         "image-2-official": ["ratio", "quality", "resolution"],
-        "image-2": ["ratio", "resolution"],
+        "image-2": ["ratio", "quality", "resolution"],
         "nb-2-official": ["ratio", "resolution"],
         "nb-2": ["ratio", "resolution"],
         "nb-pro": ["ratio", "resolution"],
@@ -127,6 +127,7 @@
         },
         "image-2": {
           ratio: ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9", "1:4", "4:1", "1:8", "8:1"],
+          quality: ["low", "medium", "high"],
           resolution: ["1k", "2k", "4k"],
         },
         "nb-2-official": {
@@ -156,7 +157,7 @@
       };
       var modelParamDefaults = {
         "image-2-official": { ratio: "auto", quality: "medium", resolution: "1k" },
-        "image-2": { ratio: "1:1", resolution: "1k" },
+        "image-2": { ratio: "1:1", quality: "medium", resolution: "1k" },
         "nb-2-official": { ratio: "auto", resolution: "1k" },
         "nb-2": { ratio: "auto", resolution: "1K" },
         "nb-pro": { ratio: "auto", resolution: "1K" },
