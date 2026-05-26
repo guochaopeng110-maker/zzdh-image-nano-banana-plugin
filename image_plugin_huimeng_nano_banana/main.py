@@ -40,6 +40,7 @@ plugin_dir = Path(__file__).parent
 _TASK_LOG_DB_PATH = plugin_dir / "image_task_logs.db"
 _FILE_LOG_DIR = plugin_dir / "logs"
 _DEFAULT_BASE_URL = "https://api.huimengi.com"
+_IMAGE_UPLOAD_URL = "https://imageproxy.zhongzhuan.chat/api/upload"
 _log_buffer = []
 _log_buffer_lock = threading.Lock()
 _MAX_BUFFER_LOGS = 2000
@@ -269,6 +270,59 @@ def _log_task_result(task_context, status, image_url=None, local_path=None, erro
 
 def _normalize_base_url(url: str) -> str:
     return (url or _DEFAULT_BASE_URL).rstrip("/")
+
+
+def _collect_reference_image_inputs(reference_images):
+    urls = []
+    local_paths = []
+    if isinstance(reference_images, dict):
+        values = list(reference_images.values())
+    elif isinstance(reference_images, (list, tuple)):
+        values = list(reference_images)
+    elif isinstance(reference_images, str):
+        values = [reference_images]
+    else:
+        values = []
+
+    for item in values:
+        value = str(item or "").strip()
+        if not value:
+            continue
+        if value.startswith(("http://", "https://")):
+            urls.append(value)
+            continue
+        if os.path.exists(value) and os.path.getsize(value) > 0:
+            local_paths.append(value)
+    return urls, local_paths
+
+
+def _upload_image_to_host(image_path, timeout_s=60):
+    try:
+        with open(image_path, "rb") as f:
+            files = {"file": (os.path.basename(image_path), f)}
+            resp = requests.post(_IMAGE_UPLOAD_URL, files=files, timeout=timeout_s)
+        if resp.status_code != 200:
+            _log(f"[ref-image] upload failed status={resp.status_code} path={image_path}", "WARNING")
+            return None
+        data = resp.json()
+        image_url = data.get("url")
+        if not image_url:
+            _log(f"[ref-image] upload response missing url path={image_path}", "WARNING")
+            return None
+        return str(image_url)
+    except Exception as e:
+        _log(f"[ref-image] upload error path={image_path} err={e}", "WARNING")
+        return None
+
+
+def _build_reference_image_payload(reference_images, upload_timeout_s):
+    direct_urls, local_paths = _collect_reference_image_inputs(reference_images)
+    result = list(direct_urls)
+    for path in local_paths:
+        uploaded = _upload_image_to_host(path, timeout_s=upload_timeout_s)
+        if uploaded:
+            result.append(uploaded)
+    return result
 
 
 def _download_image_from_url(url, timeout_s):
@@ -510,6 +564,7 @@ def generate(context):
     prompt = context.get("prompt", "")
     output_dir = context.get("output_dir", "")
     plugin_params = context.get("plugin_params", {}) or {}
+    reference_images = context.get("reference_images", {}) or {}
     viewer_index = context.get("viewer_index", 0)
 
     api_key = str(plugin_params.get("api_key", "")).strip()
@@ -524,15 +579,22 @@ def generate(context):
         raise Exception("PLUGIN_ERROR:::missing api_key")
 
     os.makedirs(output_dir, exist_ok=True)
+    image_refs = _build_reference_image_payload(reference_images, request_timeout_s)
+    _log(
+        f"[generate] reference_images input={len(reference_images) if isinstance(reference_images, dict) else 0} resolved={len(image_refs)}"
+    )
+
     task_log_context = {
         "model_name": model,
-        "task_mode": "async",
+        "task_mode": "img2img" if image_refs else "txt2img",
         "prompt": prompt,
     }
     task_log_id = _log_task_result(task_log_context, status="running")
 
     try:
         model_params = _build_model_params(model, prompt, plugin_params)
+        if image_refs:
+            model_params["image"] = image_refs[0] if len(image_refs) == 1 else image_refs
         _log(f"[generate] model={model} params={json.dumps(model_params, ensure_ascii=False)}")
         task_id = submit_huimeng_task(api_key, base_url, model, model_params, request_timeout_s)
         _log(f"[generate] submitted task_id={task_id}")
