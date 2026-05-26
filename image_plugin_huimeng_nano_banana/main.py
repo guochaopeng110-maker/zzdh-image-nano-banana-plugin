@@ -1,6 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """HuiMeng image relay plugin."""
 
+import base64
 import json
 import logging
 import os
@@ -40,7 +41,6 @@ plugin_dir = Path(__file__).parent
 _TASK_LOG_DB_PATH = plugin_dir / "image_task_logs.db"
 _FILE_LOG_DIR = plugin_dir / "logs"
 _DEFAULT_BASE_URL = "https://api.huimengi.com"
-_IMAGE_UPLOAD_URL = "https://imageproxy.zhongzhuan.chat/api/upload"
 _log_buffer = []
 _log_buffer_lock = threading.Lock()
 _MAX_BUFFER_LOGS = 2000
@@ -296,32 +296,22 @@ def _collect_reference_image_inputs(reference_images):
     return urls, local_paths
 
 
-def _upload_image_to_host(image_path, timeout_s=60):
+def _encode_image_to_base64(image_path):
     try:
         with open(image_path, "rb") as f:
-            files = {"file": (os.path.basename(image_path), f)}
-            resp = requests.post(_IMAGE_UPLOAD_URL, files=files, timeout=timeout_s)
-        if resp.status_code != 200:
-            _log(f"[ref-image] upload failed status={resp.status_code} path={image_path}", "WARNING")
-            return None
-        data = resp.json()
-        image_url = data.get("url")
-        if not image_url:
-            _log(f"[ref-image] upload response missing url path={image_path}", "WARNING")
-            return None
-        return str(image_url)
+            return base64.b64encode(f.read()).decode("utf-8")
     except Exception as e:
-        _log(f"[ref-image] upload error path={image_path} err={e}", "WARNING")
+        _log(f"[ref-image] base64 encode error path={image_path} err={e}", "WARNING")
         return None
 
 
-def _build_reference_image_payload(reference_images, upload_timeout_s):
+def _build_reference_image_payload(reference_images):
     direct_urls, local_paths = _collect_reference_image_inputs(reference_images)
     result = list(direct_urls)
     for path in local_paths:
-        uploaded = _upload_image_to_host(path, timeout_s=upload_timeout_s)
-        if uploaded:
-            result.append(uploaded)
+        b64 = _encode_image_to_base64(path)
+        if b64:
+            result.append(b64)
     return result
 
 
@@ -579,7 +569,7 @@ def generate(context):
         raise Exception("PLUGIN_ERROR:::missing api_key")
 
     os.makedirs(output_dir, exist_ok=True)
-    image_refs = _build_reference_image_payload(reference_images, request_timeout_s)
+    image_refs = _build_reference_image_payload(reference_images)
     _log(
         f"[generate] reference_images input={len(reference_images) if isinstance(reference_images, dict) else 0} resolved={len(image_refs)}"
     )
