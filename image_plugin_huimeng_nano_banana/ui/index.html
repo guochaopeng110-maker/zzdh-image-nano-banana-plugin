@@ -27,6 +27,37 @@
     </div>
 
     <div class="form-row">
+      <label class="form-label">Ratio</label>
+      <div class="form-control">
+        <select id="ratioSelect"></select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Quality</label>
+      <div class="form-control">
+        <select id="qualitySelect"></select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Resolution</label>
+      <div class="form-control">
+        <select id="resolutionSelect"></select>
+      </div>
+    </div>
+
+    <div class="form-row" id="orientationRow">
+      <label class="form-label">Orientation</label>
+      <div class="form-control">
+        <select id="orientationSelect">
+          <option value="横屏">横屏</option>
+          <option value="竖屏">竖屏</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
       <label class="form-label">Request Timeout (ms)</label>
       <div class="form-control"><input type="number" id="requestTimeoutInput" min="100" step="1" value="60000" /></div>
     </div>
@@ -56,6 +87,11 @@
       var apiKeyInput = document.getElementById("apiKeyInput");
       var baseUrlInput = document.getElementById("baseUrlInput");
       var modelSelect = document.getElementById("modelSelect");
+      var ratioSelect = document.getElementById("ratioSelect");
+      var qualitySelect = document.getElementById("qualitySelect");
+      var resolutionSelect = document.getElementById("resolutionSelect");
+      var orientationRow = document.getElementById("orientationRow");
+      var orientationSelect = document.getElementById("orientationSelect");
       var requestTimeoutInput = document.getElementById("requestTimeoutInput");
       var downloadTimeoutInput = document.getElementById("downloadTimeoutInput");
       var pollIntervalInput = document.getElementById("pollIntervalInput");
@@ -72,33 +108,151 @@
         "seedream-4.5",
       ];
       var defaultModel = supportedModels[0];
+      var modelFieldMap = {
+        "image-2-official": ["ratio", "quality", "resolution"],
+        "image-2": ["ratio", "resolution"],
+        "nb-2-official": ["ratio", "resolution"],
+        "nb-2": ["ratio", "resolution"],
+        "nb-pro": ["ratio", "resolution"],
+        "nb-pro-official": ["ratio", "resolution"],
+        "z-image-turbo": ["orientation"],
+        "seedream-5.0-lite": ["ratio", "resolution"],
+        "seedream-4.5": ["ratio", "resolution"],
+      };
+      var modelParamOptions = {
+        "image-2-official": {
+          ratio: ["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+          quality: ["low", "medium", "high"],
+          resolution: ["1k", "2k", "4k"],
+        },
+        "image-2": {
+          ratio: ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9", "1:4", "4:1", "1:8", "8:1"],
+          resolution: ["1k", "2k", "4k"],
+        },
+        "nb-2-official": {
+          ratio: ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9", "1:4", "4:1", "1:8", "8:1"],
+          resolution: ["1k", "2k", "4k"],
+        },
+        "nb-2": {
+          ratio: ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9", "1:4", "4:1", "1:8", "8:1"],
+          resolution: ["1K", "2K", "4K"],
+        },
+        "nb-pro": {
+          ratio: ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9"],
+          resolution: ["1K", "2K", "4K"],
+        },
+        "nb-pro-official": {
+          ratio: ["auto", "1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+          resolution: ["1k", "2k", "4k"],
+        },
+        "seedream-5.0-lite": {
+          ratio: ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"],
+          resolution: ["2K", "3K"],
+        },
+        "seedream-4.5": {
+          ratio: ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"],
+          resolution: ["2K", "4K"],
+        },
+      };
+      var modelParamDefaults = {
+        "image-2-official": { ratio: "auto", quality: "medium", resolution: "1k" },
+        "image-2": { ratio: "1:1", resolution: "1k" },
+        "nb-2-official": { ratio: "auto", resolution: "1k" },
+        "nb-2": { ratio: "auto", resolution: "1K" },
+        "nb-pro": { ratio: "auto", resolution: "1K" },
+        "nb-pro-official": { ratio: "auto", resolution: "1k" },
+        "z-image-turbo": { orientation: "横屏" },
+        "seedream-5.0-lite": { ratio: "1:1", resolution: "2K" },
+        "seedream-4.5": { ratio: "1:1", resolution: "2K" },
+      };
 
       modelSelect.innerHTML = supportedModels.map(function (model) {
         return "<option value=\"" + model + "\">" + model + "</option>";
       }).join("");
 
+      function setSelectOptions(selectEl, values, selectedValue) {
+        var options = values || [];
+        selectEl.innerHTML = options.map(function (v) {
+          return "<option value=\"" + v + "\">" + v + "</option>";
+        }).join("");
+        if (!options.length) {
+          return;
+        }
+        if (selectedValue && options.indexOf(selectedValue) >= 0) {
+          selectEl.value = selectedValue;
+        } else {
+          selectEl.value = options[0];
+        }
+      }
+
+      function updateParamVisibility() {
+        var model = modelSelect.value || defaultModel;
+        var visible = modelFieldMap[model] || [];
+        var ratioRow = ratioSelect.closest(".form-row");
+        var qualityRow = qualitySelect.closest(".form-row");
+        var resolutionRow = resolutionSelect.closest(".form-row");
+        var options = modelParamOptions[model] || {};
+        var defaults = modelParamDefaults[model] || {};
+
+        if (visible.indexOf("ratio") >= 0) {
+          setSelectOptions(ratioSelect, options.ratio || [], ratioSelect.value || defaults.ratio);
+        }
+        if (visible.indexOf("quality") >= 0) {
+          setSelectOptions(qualitySelect, options.quality || [], qualitySelect.value || defaults.quality);
+        }
+        if (visible.indexOf("resolution") >= 0) {
+          setSelectOptions(resolutionSelect, options.resolution || [], resolutionSelect.value || defaults.resolution);
+        }
+        ratioRow.style.display = visible.indexOf("ratio") >= 0 ? "" : "none";
+        qualityRow.style.display = visible.indexOf("quality") >= 0 ? "" : "none";
+        resolutionRow.style.display = visible.indexOf("resolution") >= 0 ? "" : "none";
+        orientationRow.style.display = visible.indexOf("orientation") >= 0 ? "" : "none";
+      }
+
       function save() {
         PluginSDK.saveParam("api_key", apiKeyInput.value || "");
         PluginSDK.saveParam("base_url", baseUrlInput.value || "https://api.huimengi.com");
         PluginSDK.saveParam("model", modelSelect.value || defaultModel);
+        PluginSDK.saveParam("ratio", ratioSelect.value || "auto");
+        PluginSDK.saveParam("quality", qualitySelect.value || "medium");
+        PluginSDK.saveParam("resolution", resolutionSelect.value || "1k");
+        PluginSDK.saveParam("orientation", orientationSelect.value || "横屏");
         PluginSDK.saveParam("request_timeout", parseInt(requestTimeoutInput.value) || 60000);
         PluginSDK.saveParam("download_timeout", parseInt(downloadTimeoutInput.value) || 60000);
         PluginSDK.saveParam("poll_interval_ms", parseInt(pollIntervalInput.value) || 10000);
         PluginSDK.saveParam("poll_timeout_ms", parseInt(pollTimeoutInput.value) || 120000);
       }
 
-      [apiKeyInput, baseUrlInput, modelSelect, requestTimeoutInput, downloadTimeoutInput, pollIntervalInput, pollTimeoutInput].forEach(function (el) {
+      [apiKeyInput, baseUrlInput, modelSelect, ratioSelect, qualitySelect, resolutionSelect, orientationSelect, requestTimeoutInput, downloadTimeoutInput, pollIntervalInput, pollTimeoutInput].forEach(function (el) {
         el.addEventListener("change", save);
       });
+      modelSelect.addEventListener("change", updateParamVisibility);
 
       PluginSDK.onReady(function (params) {
         if (params.api_key) apiKeyInput.value = params.api_key;
         if (params.base_url) baseUrlInput.value = params.base_url;
         if (params.model && supportedModels.indexOf(String(params.model)) >= 0) modelSelect.value = String(params.model); else modelSelect.value = defaultModel;
+        if (params.ratio != null) ratioSelect.setAttribute("data-saved", String(params.ratio));
+        if (params.quality != null) qualitySelect.setAttribute("data-saved", String(params.quality));
+        if (params.resolution != null) resolutionSelect.setAttribute("data-saved", String(params.resolution));
+        if (params.orientation != null) orientationSelect.value = String(params.orientation);
         if (params.request_timeout != null) requestTimeoutInput.value = params.request_timeout;
         if (params.download_timeout != null) downloadTimeoutInput.value = params.download_timeout;
         if (params.poll_interval_ms != null) pollIntervalInput.value = params.poll_interval_ms;
         if (params.poll_timeout_ms != null) pollTimeoutInput.value = params.poll_timeout_ms;
+        updateParamVisibility();
+        if (ratioSelect.getAttribute("data-saved")) {
+          var ratioSaved = ratioSelect.getAttribute("data-saved");
+          if ([].slice.call(ratioSelect.options).some(function (o) { return o.value === ratioSaved; })) ratioSelect.value = ratioSaved;
+        }
+        if (qualitySelect.getAttribute("data-saved")) {
+          var qualitySaved = qualitySelect.getAttribute("data-saved");
+          if ([].slice.call(qualitySelect.options).some(function (o) { return o.value === qualitySaved; })) qualitySelect.value = qualitySaved;
+        }
+        if (resolutionSelect.getAttribute("data-saved")) {
+          var resolutionSaved = resolutionSelect.getAttribute("data-saved");
+          if ([].slice.call(resolutionSelect.options).some(function (o) { return o.value === resolutionSaved; })) resolutionSelect.value = resolutionSaved;
+        }
       });
 
       document.getElementById("btnTaskLog").addEventListener("click", function () {

@@ -51,6 +51,9 @@ _default_params = {
     "download_timeout": 60000,
     "poll_interval_ms": 10000,
     "poll_timeout_ms": 120000,
+    "ratio": "auto",
+    "quality": "medium",
+    "resolution": "1k",
 }
 
 _logger = logging.getLogger("image.huimeng")
@@ -255,11 +258,103 @@ def _build_filename(viewer_index, idx, total, url):
     return f"{viewer_index:04d}_image_{timestamp}{suffix}{ext}"
 
 
-def submit_huimeng_task(api_key, endpoint, model, prompt, request_timeout_s):
+_MODEL_PARAM_SPECS = {
+    "image-2-official": {
+        "defaults": {"ratio": "auto", "quality": "medium", "resolution": "1k"},
+        "enum": {
+            "ratio": ["auto", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+            "quality": ["low", "medium", "high"],
+            "resolution": ["1k", "2k", "4k"],
+        },
+    },
+    "image-2": {
+        "defaults": {"ratio": "1:1", "resolution": "1k"},
+        "enum": {
+            "ratio": ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9", "1:4", "4:1", "1:8", "8:1"],
+            "resolution": ["1k", "2k", "4k"],
+        },
+    },
+    "nb-2-official": {
+        "defaults": {"ratio": "auto", "resolution": "1k"},
+        "enum": {
+            "ratio": ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9", "1:4", "4:1", "1:8", "8:1"],
+            "resolution": ["1k", "2k", "4k"],
+        },
+    },
+    "nb-2": {
+        "defaults": {"ratio": "auto", "resolution": "1K"},
+        "enum": {
+            "ratio": ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9", "1:4", "4:1", "1:8", "8:1"],
+            "resolution": ["1K", "2K", "4K"],
+        },
+    },
+    "nb-pro": {
+        "defaults": {"ratio": "auto", "resolution": "1K"},
+        "enum": {
+            "ratio": ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "5:4", "4:5", "21:9"],
+            "resolution": ["1K", "2K", "4K"],
+        },
+    },
+    "nb-pro-official": {
+        "defaults": {"ratio": "auto", "resolution": "1k"},
+        "enum": {
+            "ratio": ["auto", "1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+            "resolution": ["1k", "2k", "4k"],
+        },
+    },
+    "seedream-5.0-lite": {
+        "defaults": {"ratio": "1:1", "resolution": "2K"},
+        "enum": {
+            "ratio": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"],
+            "resolution": ["2K", "3K"],
+        },
+    },
+    "seedream-4.5": {
+        "defaults": {"ratio": "1:1", "resolution": "2K"},
+        "enum": {
+            "ratio": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"],
+            "resolution": ["2K", "4K"],
+        },
+    },
+    "z-image-turbo": {
+        "defaults": {"orientation": "横屏"},
+        "enum": {
+            "orientation": ["横屏", "竖屏"],
+        },
+    },
+}
+
+
+def _coerce_enum(value, allowed, default_value):
+    raw = str(value or "").strip()
+    if not raw:
+        return default_value
+    lower_map = {str(item).lower(): item for item in allowed}
+    return lower_map.get(raw.lower(), default_value)
+
+
+def _build_model_params(model, prompt, plugin_params):
+    model = str(model or "").strip()
+    base = {"prompt": prompt}
+    spec = _MODEL_PARAM_SPECS.get(model)
+    if not spec:
+        base["ratio"] = str(plugin_params.get("ratio") or "auto").strip() or "auto"
+        base["resolution"] = str(plugin_params.get("resolution") or "1k").strip() or "1k"
+        return base
+
+    for field, allowed_values in spec.get("enum", {}).items():
+        default_value = spec.get("defaults", {}).get(field)
+        selected = _coerce_enum(plugin_params.get(field), allowed_values, default_value)
+        if selected:
+            base[field] = selected
+    return base
+
+
+def submit_huimeng_task(api_key, endpoint, model, params, request_timeout_s):
     url = f"{_normalize_base_url(endpoint)}/api/v1/tasks"
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-    payload = {"model": model, "params": {"prompt": prompt}}
-    payload_for_log = {"model": model, "params": {"prompt": prompt}}
+    payload = {"model": model, "params": params}
+    payload_for_log = {"model": model, "params": params}
     _log(
         f"[request] submit endpoint={url} model={model} timeout_s={request_timeout_s} payload={json.dumps(payload_for_log, ensure_ascii=False)}"
     )
@@ -283,7 +378,7 @@ def poll_huimeng_result(api_key, endpoint, task_id, request_timeout_s, poll_inte
     while True:
         rounds += 1
         resp = requests.get(url, headers=headers, timeout=request_timeout_s)
-        _log(f"[response] poll status_code={resp.status_code} body={resp.text[:1000]}")
+        _log(f"[response] poll status_code={resp.status_code}")
         if resp.status_code != 200:
             raise Exception(f"HTTP {resp.status_code}: {resp.text}")
         data = resp.json()
@@ -368,7 +463,9 @@ def generate(context):
     task_log_id = _log_task_result(task_log_context, status="running")
 
     try:
-        task_id = submit_huimeng_task(api_key, base_url, model, prompt, request_timeout_s)
+        model_params = _build_model_params(model, prompt, plugin_params)
+        _log(f"[generate] model={model} params={json.dumps(model_params, ensure_ascii=False)}")
+        task_id = submit_huimeng_task(api_key, base_url, model, model_params, request_timeout_s)
         _log(f"[generate] submitted task_id={task_id}")
         url_list = poll_huimeng_result(
             api_key, base_url, task_id, request_timeout_s, poll_interval_ms, poll_timeout_ms
