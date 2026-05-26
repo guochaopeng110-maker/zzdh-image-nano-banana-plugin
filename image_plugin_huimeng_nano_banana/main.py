@@ -44,6 +44,7 @@ _IMAGE_UPLOAD_URL = "https://imageproxy.zhongzhuan.chat/api/upload"
 _log_buffer = []
 _log_buffer_lock = threading.Lock()
 _MAX_BUFFER_LOGS = 2000
+_MAX_FILE_LOG_BYTES = 5 * 1024 * 1024
 _file_log_lock = threading.Lock()
 _file_log_path = None
 
@@ -119,7 +120,6 @@ def _ensure_file_log_path():
 
 def _append_file_log(event, payload):
     try:
-        path = _ensure_file_log_path()
         record = {
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
             "event": event,
@@ -127,6 +127,17 @@ def _append_file_log(event, payload):
         }
         line = json.dumps(record, ensure_ascii=False)
         with _file_log_lock:
+            _FILE_LOG_DIR.mkdir(parents=True, exist_ok=True)
+            global _file_log_path
+            if _file_log_path is None:
+                filename = datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".log"
+                _file_log_path = _FILE_LOG_DIR / filename
+            path = _file_log_path
+            projected = len((line + "\n").encode("utf-8"))
+            if path.exists() and (path.stat().st_size + projected) > _MAX_FILE_LOG_BYTES:
+                filename = datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".log"
+                _file_log_path = _FILE_LOG_DIR / filename
+                path = _file_log_path
             with open(path, "a", encoding="utf-8") as f:
                 f.write(line + "\n")
     except Exception as e:
@@ -514,6 +525,14 @@ def poll_huimeng_result(api_key, endpoint, task_id, request_timeout_s, poll_inte
         _log(f"[poll] task_id={task_id} round={rounds} status={status}")
         if status == "completed":
             result = data.get("result") or {}
+            _log(
+                "[poll] completed task_id={} result.size={} result.ratio={} result.resolution={}".format(
+                    task_id,
+                    result.get("size"),
+                    result.get("ratio"),
+                    result.get("resolution"),
+                )
+            )
             urls = result.get("image_urls") or []
             if not urls and result.get("image_url"):
                 urls = [result.get("image_url")]
