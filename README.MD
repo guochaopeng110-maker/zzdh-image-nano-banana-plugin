@@ -1,6 +1,8 @@
-# zz-image-plugins
+﻿# zz-image-plugins
 
-`zz-image-plugins` 是一个用于图像生成中转服务的插件仓库，包含多个渠道与版本的实现（`zlhub`、`tduhub`、`V2` 变体），以及一个带任务日志和实时日志能力的增强版本 `nano_banana_plugin_geeknow`。
+## 仓库描述
+
+`zz-image-plugins` 是一个用于图像生成中转服务的插件仓库，包含多个渠道与版本的实现（`zlhub`、`tduhub`、`webai`、`V2` 变体），以及一个带任务日志和实时日志能力的增强版本 `nano_banana_plugin_geeknow`。
 
 ![Plugin Menu](docs/images/plugin-menu.png)
 
